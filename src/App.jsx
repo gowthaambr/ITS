@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Box, Plane, Cylinder, Html, Environment, SpotLight, Trail, Grid } from '@react-three/drei';
-import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import './App.css';
 
@@ -532,7 +532,7 @@ export default function App() {
         </div>
       </div>
 
-      <Canvas shadows camera={{ position: [-60, 45, -60], fov: 50 }}>
+      <Canvas shadows flat camera={{ position: [-60, 45, -60], fov: 50 }}>
         {/* Dark night sky */}
         <color attach="background" args={['#081323']} />
         <fog attach="fog" args={['#081323', 30, 320]} />
@@ -540,7 +540,6 @@ export default function App() {
         {/* High-quality Post Processing Pipeline */}
         <EffectComposer disableNormalPass>
           <Bloom luminanceThreshold={1.0} mipmapBlur intensity={1.5} />
-          <ToneMapping />
         </EffectComposer>
 
         <Environment preset="night" />
