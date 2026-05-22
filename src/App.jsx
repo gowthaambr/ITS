@@ -41,128 +41,268 @@ const windowMaterial = new THREE.MeshStandardMaterial({
   toneMapped: false 
 });
 
-// --- PROCEDURAL TREES (Stylized low-poly but realistic colors) ---
+// --- PROCEDURAL TREES ---
 function Tree({ position }) {
-  const height = 4 + Math.random() * 3;
-  const leafSize = 2 + Math.random() * 1.5;
+  const { height, leafSize } = useMemo(() => ({
+    height: 4 + Math.random() * 4,
+    leafSize: 1.8 + Math.random() * 1.5,
+  }), []);
   return (
     <group position={position}>
-      <Cylinder args={[0.3, 0.4, height]} position={[0, height/2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#1f1813" roughness={0.9} />
+      <Cylinder args={[0.2, 0.3, height]} position={[0, height / 2, 0]} castShadow>
+        <meshStandardMaterial color="#231a0e" roughness={0.95} />
       </Cylinder>
-      <mesh position={[0, height, 0]} castShadow receiveShadow>
-        <dodecahedronGeometry args={[leafSize, 1]} />
-        <meshStandardMaterial color="#0f1f10" roughness={0.8} />
+      <mesh position={[0, height * 0.78, 0]} castShadow>
+        <dodecahedronGeometry args={[leafSize * 1.15, 1]} />
+        <meshStandardMaterial color="#0c1c0d" roughness={0.88} />
+      </mesh>
+      <mesh position={[0, height * 1.12, 0]} castShadow>
+        <dodecahedronGeometry args={[leafSize * 0.7, 1]} />
+        <meshStandardMaterial color="#112214" roughness={0.82} />
       </mesh>
     </group>
   );
 }
 
-// --- 3D ENVIRONMENT (Neon City Landscape) ---
+// --- L-SHAPED LAMP POST ---
+function LampPost({ position, rotation }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <Cylinder args={[0.26, 0.32, 0.45]} position={[0, 0.22, 0]}>
+        <meshStandardMaterial color="#1c2230" roughness={0.7} metalness={0.6} />
+      </Cylinder>
+      <Cylinder args={[0.1, 0.13, 9]} position={[0, 4.9, 0]}>
+        <meshStandardMaterial color="#253040" roughness={0.5} metalness={0.8} />
+      </Cylinder>
+      <Box args={[4.6, 0.13, 0.13]} position={[-2.3, 9.2, 0]}>
+        <meshStandardMaterial color="#253040" roughness={0.5} metalness={0.8} />
+      </Box>
+      <Box args={[1.9, 0.42, 0.58]} position={[-4.4, 9.05, 0]}>
+        <meshStandardMaterial color="#0c1220" roughness={0.2} metalness={0.9} />
+      </Box>
+      <mesh position={[-4.4, 8.82, 0]}>
+        <planeGeometry args={[1.65, 0.22]} />
+        <meshStandardMaterial color="#ffe8a8" emissive="#ffcc44" emissiveIntensity={5.0} toneMapped={false} />
+      </mesh>
+      <pointLight position={[-4.4, 8.2, 0]} color="#ffcc44" intensity={22} distance={30} decay={2} />
+    </group>
+  );
+}
+
+// --- 3D ENVIRONMENT ---
 function EnvironmentScene() {
-  const { buildings } = useMemo(() => {
+  const { buildings, treePositions } = useMemo(() => {
     const b = [];
     const positions = [
       [-60, -60], [-90, -40], [-40, -90],
       [60, 60], [90, 40], [40, 90],
       [60, -60], [90, -40], [40, -90],
-      [-60, 60], [-90, 40], [-40, 90]
+      [-60, 60], [-90, 40], [-40, 90],
+      [-130, -65], [-65, -130],
+      [130, 65], [65, 130],
+      [130, -65], [65, -130],
+      [-130, 65], [-65, 130],
     ];
     positions.forEach((pos, index) => {
-      const height = 20 + Math.random() * 80;
+      const h = 25 + Math.random() * 75;
+      const w = 16 + Math.random() * 14;
+      const d = 16 + Math.random() * 14;
+      const floors = Math.floor(h / 4);
       b.push({
-        x: pos[0],
-        z: pos[1],
-        w: 18 + Math.random() * 12,
-        d: 18 + Math.random() * 12,
-        h: height,
-        mat: buildingMaterials[index % buildingMaterials.length]
+        x: pos[0], z: pos[1], w, d, h,
+        mat: buildingMaterials[index % buildingMaterials.length],
+        isGlass: index % 3 === 1,
+        windowsLit: Array.from({ length: floors }, () => Math.random() > 0.42),
+        rooftopSeed: Math.random(),
+        acW: 3 + Math.random() * 4,
+        acD: 2 + Math.random() * 2,
       });
     });
-    return { buildings: b };
+
+    const trees = [];
+    for (let z = -130; z <= 130; z += 16) {
+      if (Math.abs(z) > 22) {
+        trees.push([22, 0, z]);
+        trees.push([-22, 0, z]);
+      }
+    }
+    for (let x = -130; x <= 130; x += 16) {
+      if (Math.abs(x) > 22) {
+        trees.push([x, 0, 22]);
+        trees.push([x, 0, -22]);
+      }
+    }
+    return { buildings: b, treePositions: trees };
   }, []);
+
+  const cwOffsets = [-7.2, -5.2, -3.2, -1.2, 1.2, 3.2, 5.2, 7.2];
+  const centerDashes = Array.from({ length: 18 }, (_, i) => -144 + i * 17).filter(v => Math.abs(v) > 23);
 
   return (
     <group>
-      {/* City Ground */}
-      <Plane args={[350, 350]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow>
-        <meshStandardMaterial color="#10121e" roughness={0.98} metalness={0.05} />
+      {/* Base ground */}
+      <Plane args={[500, 500]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.25, 0]} receiveShadow>
+        <meshStandardMaterial color="#090b0f" roughness={0.98} />
       </Plane>
+      {/* City block ground in corners */}
+      {[[-120, -120], [120, -120], [-120, 120], [120, 120]].map(([x, z], i) => (
+        <Plane key={`blk-${i}`} args={[200, 200]} rotation={[-Math.PI / 2, 0, 0]} position={[x, -0.1, z]} receiveShadow>
+          <meshStandardMaterial color="#0b0d11" roughness={0.97} />
+        </Plane>
+      ))}
 
-      {/* Crossroad */}
-      <Plane args={[300, 40]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <meshStandardMaterial color="#141b29" roughness={0.75} metalness={0.06} />
-      </Plane>
-      <Plane args={[40, 300]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
-        <meshStandardMaterial color="#141b29" roughness={0.75} metalness={0.06} />
-      </Plane>
-
-      {/* Intersection Platform */}
-      <Box args={[40, 0.2, 40]} position={[0, 0.12, 0]} receiveShadow>
-        <meshStandardMaterial color="#1f273a" roughness={0.9} metalness={0.05} />
+      {/* === SIDEWALKS === */}
+      <Box args={[14, 0.28, 260]} position={[27, 0.09, 0]} receiveShadow>
+        <meshStandardMaterial color="#1e2128" roughness={0.96} metalness={0.02} />
+      </Box>
+      <Box args={[14, 0.28, 260]} position={[-27, 0.09, 0]} receiveShadow>
+        <meshStandardMaterial color="#1e2128" roughness={0.96} metalness={0.02} />
+      </Box>
+      <Box args={[260, 0.28, 14]} position={[0, 0.09, 27]} receiveShadow>
+        <meshStandardMaterial color="#1e2128" roughness={0.96} metalness={0.02} />
+      </Box>
+      <Box args={[260, 0.28, 14]} position={[0, 0.09, -27]} receiveShadow>
+        <meshStandardMaterial color="#1e2128" roughness={0.96} metalness={0.02} />
       </Box>
 
-      {/* Lane Markings */}
-      {[-120, -80, -40, 40, 80, 120].map((z, idx) => (
-         <Plane key={`line-ns-${idx}`} args={[0.8, 10]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.15, z]}>
-           <meshStandardMaterial color="#f4f4f4" emissive="#f4f4f4" emissiveIntensity={0.9} toneMapped={false} />
-         </Plane>
-      ))}
-      {[-120, -80, -40, 40, 80, 120].map((x, idx) => (
-         <Plane key={`line-ew-${idx}`} args={[10, 0.8]} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.15, 0]}>
-           <meshStandardMaterial color="#f4f4f4" emissive="#f4f4f4" emissiveIntensity={0.9} toneMapped={false} />
-         </Plane>
+      {/* === CURBS === */}
+      {[[20, 0, 260, true], [-20, 0, 260, true], [260, 0, 20, false], [260, 0, -20, false]].map(([x, z, len, ns], i) => (
+        <Box key={`curb-${i}`} args={ns ? [0.38, 0.32, len] : [len, 0.32, 0.38]} position={[x, 0.11, z]}>
+          <meshStandardMaterial color="#363a45" roughness={0.9} />
+        </Box>
       ))}
 
-      {/* Buildings */}
+      {/* === ROADS === */}
+      <Plane args={[300, 40]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <meshStandardMaterial color="#131a27" roughness={0.78} metalness={0.06} />
+      </Plane>
+      <Plane args={[40, 300]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
+        <meshStandardMaterial color="#131a27" roughness={0.78} metalness={0.06} />
+      </Plane>
+      <Box args={[40, 0.22, 40]} position={[0, 0.13, 0]} receiveShadow>
+        <meshStandardMaterial color="#1c2438" roughness={0.9} metalness={0.05} />
+      </Box>
+
+      {/* === LANE MARKINGS — white dashes === */}
+      {[-115, -85, -55, -25, 25, 55, 85, 115].map((z, i) => (
+        <Plane key={`ns-${i}`} args={[0.65, 8]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.17, z]}>
+          <meshStandardMaterial color="#dde0e8" emissive="#dde0e8" emissiveIntensity={0.5} toneMapped={false} />
+        </Plane>
+      ))}
+      {[-115, -85, -55, -25, 25, 55, 85, 115].map((x, i) => (
+        <Plane key={`ew-${i}`} args={[8, 0.65]} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.17, 0]}>
+          <meshStandardMaterial color="#dde0e8" emissive="#dde0e8" emissiveIntensity={0.5} toneMapped={false} />
+        </Plane>
+      ))}
+
+      {/* === YELLOW CENTER LINES === */}
+      {centerDashes.map((z, i) => (
+        <Plane key={`yns-${i}`} args={[0.28, 8]} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.18, z]}>
+          <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.9} toneMapped={false} />
+        </Plane>
+      ))}
+      {centerDashes.map((x, i) => (
+        <Plane key={`yew-${i}`} args={[8, 0.28]} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.18, 0]}>
+          <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.9} toneMapped={false} />
+        </Plane>
+      ))}
+
+      {/* === STOP LINES === */}
+      {[[0, 0.18, 23, [19, 0.7]], [0, 0.18, -23, [19, 0.7]], [23, 0.18, 0, [0.7, 19]], [-23, 0.18, 0, [0.7, 19]]].map(([x, y, z, size], i) => (
+        <Plane key={`stop-${i}`} args={size} rotation={[-Math.PI / 2, 0, 0]} position={[x, y, z]}>
+          <meshStandardMaterial color="#f0f0f0" emissive="#f0f0f0" emissiveIntensity={0.65} toneMapped={false} />
+        </Plane>
+      ))}
+
+      {/* === CROSSWALKS (4 approaches) === */}
+      {cwOffsets.map((x, i) => (
+        <Plane key={`cwN-${i}`} args={[1.1, 5.5]} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.18, 26]}>
+          <meshStandardMaterial color="#e8e8e8" emissive="#e8e8e8" emissiveIntensity={0.55} toneMapped={false} />
+        </Plane>
+      ))}
+      {cwOffsets.map((x, i) => (
+        <Plane key={`cwS-${i}`} args={[1.1, 5.5]} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.18, -26]}>
+          <meshStandardMaterial color="#e8e8e8" emissive="#e8e8e8" emissiveIntensity={0.55} toneMapped={false} />
+        </Plane>
+      ))}
+      {cwOffsets.map((z, i) => (
+        <Plane key={`cwE-${i}`} args={[5.5, 1.1]} rotation={[-Math.PI / 2, 0, 0]} position={[26, 0.18, z]}>
+          <meshStandardMaterial color="#e8e8e8" emissive="#e8e8e8" emissiveIntensity={0.55} toneMapped={false} />
+        </Plane>
+      ))}
+      {cwOffsets.map((z, i) => (
+        <Plane key={`cwW-${i}`} args={[5.5, 1.1]} rotation={[-Math.PI / 2, 0, 0]} position={[-26, 0.18, z]}>
+          <meshStandardMaterial color="#e8e8e8" emissive="#e8e8e8" emissiveIntensity={0.55} toneMapped={false} />
+        </Plane>
+      ))}
+
+      {/* === BUILDINGS WITH WINDOWS & ROOFTOP DETAILS === */}
       {buildings.map((b, i) => (
         <group key={i} position={[b.x, b.h / 2 - 0.2, b.z]}>
+          {/* Body */}
           <Box args={[b.w, b.h, b.d]} castShadow receiveShadow material={b.mat} />
-          <Box args={[b.w * 0.95, b.h * 0.6, b.d * 0.95]} position={[0, b.h * 0.1, 0]}>
-            <meshStandardMaterial color="#0f172a" transparent opacity={0.15} />
+          {/* Ground floor plinth */}
+          <Box args={[b.w + 1.2, 3.2, b.d + 1.2]} position={[0, -b.h / 2 + 1.6, 0]}>
+            <meshStandardMaterial color="#16191f" roughness={0.9} metalness={0.15} />
           </Box>
+          {/* Window strips — front face */}
+          {b.windowsLit.map((lit, f) => lit ? (
+            <mesh key={`wf-${f}`} position={[0, -b.h / 2 + f * 4 + 2.5, b.d / 2 + 0.07]}>
+              <planeGeometry args={[b.w * 0.76, 1.4]} />
+              <meshStandardMaterial
+                color={b.isGlass ? '#a8d8ff' : '#fbbf24'}
+                emissive={b.isGlass ? '#3b82f6' : '#d97706'}
+                emissiveIntensity={b.isGlass ? 1.3 : 2.0}
+                toneMapped={false} transparent opacity={0.88}
+              />
+            </mesh>
+          ) : null)}
+          {/* Window strips — side face */}
+          {b.windowsLit.map((lit, f) => lit ? (
+            <mesh key={`ws-${f}`} position={[b.w / 2 + 0.07, -b.h / 2 + f * 4 + 2.5, 0]} rotation={[0, -Math.PI / 2, 0]}>
+              <planeGeometry args={[b.d * 0.76, 1.4]} />
+              <meshStandardMaterial
+                color={b.isGlass ? '#a8d8ff' : '#fbbf24'}
+                emissive={b.isGlass ? '#3b82f6' : '#d97706'}
+                emissiveIntensity={b.isGlass ? 1.3 : 2.0}
+                toneMapped={false} transparent opacity={0.88}
+              />
+            </mesh>
+          ) : null)}
+          {/* Rooftop AC unit */}
+          <Box args={[b.acW, 1.6, b.acD]} position={[b.w * 0.18, b.h / 2 + 0.8, b.d * 0.1]}>
+            <meshStandardMaterial color="#252b36" roughness={0.7} metalness={0.5} />
+          </Box>
+          <Box args={[b.acW * 0.6, 0.5, b.acD * 0.6]} position={[b.w * 0.18, b.h / 2 + 1.85, b.d * 0.1]}>
+            <meshStandardMaterial color="#1a1f28" roughness={0.6} metalness={0.6} />
+          </Box>
+          {/* Rooftop antenna */}
+          {b.rooftopSeed > 0.45 && (
+            <Cylinder args={[0.07, 0.07, 5.5]} position={[-b.w * 0.22, b.h / 2 + 2.75, b.d * 0.18]}>
+              <meshStandardMaterial color="#1a1d24" roughness={0.5} metalness={0.9} />
+            </Cylinder>
+          )}
+          {/* Rooftop water tank */}
+          {b.rooftopSeed > 0.7 && (
+            <Cylinder args={[1.1, 1.1, 2.2]} position={[b.w * 0.25, b.h / 2 + 1.1, -b.d * 0.2]}>
+              <meshStandardMaterial color="#1e2530" roughness={0.8} metalness={0.4} />
+            </Cylinder>
+          )}
         </group>
       ))}
 
-      {/* Street lights */}
-      {[-120, -60, 60, 120].map((pos, idx) => (
-        <group key={idx}>
-          <group position={[LANE_WIDTH + 5, 0, pos]}>
-            <Cylinder args={[0.15, 0.15, 10]} position={[0, 5, 0]}>
-              <meshStandardMaterial color="#27303f" roughness={0.8} metalness={0.5} />
-            </Cylinder>
-            <mesh position={[0, 9.5, 0]}>
-              <sphereGeometry args={[0.3, 16, 16]} />
-              <meshStandardMaterial color="#ffbc5c" emissive="#ffbc5c" emissiveIntensity={1.3} toneMapped={false} />
-            </mesh>
-          </group>
-          <group position={[-LANE_WIDTH - 5, 0, pos]}>
-            <Cylinder args={[0.15, 0.15, 10]} position={[0, 5, 0]}>
-              <meshStandardMaterial color="#27303f" roughness={0.8} metalness={0.5} />
-            </Cylinder>
-            <mesh position={[0, 9.5, 0]}>
-              <sphereGeometry args={[0.3, 16, 16]} />
-              <meshStandardMaterial color="#ffbc5c" emissive="#ffbc5c" emissiveIntensity={1.3} toneMapped={false} />
-            </mesh>
-          </group>
-          <group position={[pos, 0, LANE_WIDTH + 5]}>
-            <Cylinder args={[0.15, 0.15, 10]} position={[0, 5, 0]}>
-              <meshStandardMaterial color="#27303f" roughness={0.8} metalness={0.5} />
-            </Cylinder>
-            <mesh position={[0, 9.5, 0]}>
-              <sphereGeometry args={[0.3, 16, 16]} />
-              <meshStandardMaterial color="#ffbc5c" emissive="#ffbc5c" emissiveIntensity={1.3} toneMapped={false} />
-            </mesh>
-          </group>
-          <group position={[pos, 0, -LANE_WIDTH - 5]}>
-            <Cylinder args={[0.15, 0.15, 10]} position={[0, 5, 0]}>
-              <meshStandardMaterial color="#27303f" roughness={0.8} metalness={0.5} />
-            </Cylinder>
-            <mesh position={[0, 9.5, 0]}>
-              <sphereGeometry args={[0.3, 16, 16]} />
-              <meshStandardMaterial color="#ffbc5c" emissive="#ffbc5c" emissiveIntensity={1.3} toneMapped={false} />
-            </mesh>
-          </group>
+      {/* === TREES ALONG SIDEWALKS === */}
+      {treePositions.map((pos, i) => (
+        <Tree key={`tree-${i}`} position={pos} />
+      ))}
+
+      {/* === L-SHAPED LAMP POSTS === */}
+      {[-95, -60, -28, 28, 60, 95].map((pos, i) => (
+        <group key={`lamps-${i}`}>
+          <LampPost position={[21, 0, pos]} rotation={[0, 0, 0]} />
+          <LampPost position={[-21, 0, pos]} rotation={[0, Math.PI, 0]} />
+          <LampPost position={[pos, 0, 21]} rotation={[0, Math.PI / 2, 0]} />
+          <LampPost position={[pos, 0, -21]} rotation={[0, -Math.PI / 2, 0]} />
         </group>
       ))}
     </group>
