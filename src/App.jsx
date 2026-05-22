@@ -460,15 +460,6 @@ function VehicleMesh({ id, type, direction, getLightState, removeMe }) {
         <meshBasicMaterial color="#00ffcc" wireframe transparent opacity={0.2} toneMapped={false} />
       </mesh>
 
-      <Html position={[0, tBox[1] + 3, 0]} center sprite zIndexRange={[100, 0]}>
-        <div className="vehicle-tag">
-          <div className="tag-header">ID: OBJ-{id}</div>
-          <div className="tag-body">
-            {type.toUpperCase()} | {displaySpeed} KM/H<br/>
-            {direction}-BOUND
-          </div>
-        </div>
-      </Html>
     </group>
   );
 }
