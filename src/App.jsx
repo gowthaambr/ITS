@@ -29,9 +29,11 @@ const sidewalkMaterial = new THREE.MeshStandardMaterial({
 });
 
 const buildingMaterials = [
-  new THREE.MeshStandardMaterial({ color: '#1a1d24', roughness: 0.8, metalness: 0.2 }),
-  new THREE.MeshStandardMaterial({ color: '#0d1117', roughness: 0.4, metalness: 0.8 }), // Glassy
-  new THREE.MeshStandardMaterial({ color: '#21252b', roughness: 0.9, metalness: 0.1 })
+  new THREE.MeshStandardMaterial({ color: '#13161d', roughness: 0.88, metalness: 0.18 }), // dark concrete
+  new THREE.MeshStandardMaterial({ color: '#0a1220', roughness: 0.12, metalness: 0.95 }), // glass tower
+  new THREE.MeshStandardMaterial({ color: '#1c1308', roughness: 0.93, metalness: 0.06 }), // aged tone
+  new THREE.MeshStandardMaterial({ color: '#0e1922', roughness: 0.28, metalness: 0.75 }), // metal cladding
+  new THREE.MeshStandardMaterial({ color: '#1c1f28', roughness: 0.90, metalness: 0.10 }), // medium concrete
 ];
 
 const windowMaterial = new THREE.MeshStandardMaterial({ 
@@ -102,16 +104,28 @@ function EnvironmentScene() {
       [130, -65], [65, -130],
       [-130, 65], [-65, 130],
     ];
+    const neonPalette = ['#00f2fe', '#ff2060', '#a855f7', '#10b981', '#fb923c'];
     positions.forEach((pos, index) => {
       const h = 25 + Math.random() * 75;
       const w = 16 + Math.random() * 14;
       const d = 16 + Math.random() * 14;
-      const floors = Math.floor(h / 4);
+      const style = index % 5;
+      const isGlass = style === 1 || style === 3;
+      const hasNeon = index % 3 === 0;
+      const neonColor = neonPalette[index % neonPalette.length];
+      const isTall = h > 55;
+      const isVeryTall = h > 75;
+      const numWinCols = w > 22 ? 3 : 2;
+      const step1H = isTall ? h * 0.62 : h;
+      const step2H = isTall ? h - step1H : 0;
+      const step2W = isTall ? w * 0.78 : 0;
+      const step2D = isTall ? d * 0.78 : 0;
       b.push({
-        x: pos[0], z: pos[1], w, d, h,
-        mat: buildingMaterials[index % buildingMaterials.length],
-        isGlass: index % 3 === 1,
-        windowsLit: Array.from({ length: floors }, () => Math.random() > 0.42),
+        x: pos[0], z: pos[1], w, d, h, isGlass, hasNeon, neonColor,
+        isTall, isVeryTall, numWinCols, step1H, step2H, step2W, step2D,
+        mat: buildingMaterials[style],
+        windowsLit: Array.from({ length: Math.floor(step1H / 4) }, () => Math.random() > 0.42),
+        windowsLit2: Array.from({ length: Math.floor(step2H / 4) }, () => Math.random() > 0.45),
         rooftopSeed: Math.random(),
         acW: 3 + Math.random() * 4,
         acD: 2 + Math.random() * 2,
@@ -235,60 +249,121 @@ function EnvironmentScene() {
         </Plane>
       ))}
 
-      {/* === BUILDINGS WITH WINDOWS & ROOFTOP DETAILS === */}
-      {buildings.map((b, i) => (
-        <group key={i} position={[b.x, b.h / 2 - 0.2, b.z]}>
-          {/* Body */}
-          <Box args={[b.w, b.h, b.d]} castShadow receiveShadow material={b.mat} />
-          {/* Ground floor plinth */}
-          <Box args={[b.w + 1.2, 3.2, b.d + 1.2]} position={[0, -b.h / 2 + 1.6, 0]}>
-            <meshStandardMaterial color="#16191f" roughness={0.9} metalness={0.15} />
-          </Box>
-          {/* Window strips — front face (every other lit floor) */}
-          {b.windowsLit.map((lit, f) => (lit && f % 2 === 0) ? (
-            <mesh key={`wf-${f}`} position={[0, -b.h / 2 + f * 4 + 2.5, b.d / 2 + 0.07]}>
-              <planeGeometry args={[b.w * 0.76, 1.4]} />
-              <meshStandardMaterial
-                color={b.isGlass ? '#a8d8ff' : '#fbbf24'}
-                emissive={b.isGlass ? '#3b82f6' : '#d97706'}
-                emissiveIntensity={b.isGlass ? 1.3 : 2.0}
-                toneMapped={false} side={THREE.DoubleSide}
-              />
-            </mesh>
-          ) : null)}
-          {/* Window strips — side face (every other lit floor) */}
-          {b.windowsLit.map((lit, f) => (lit && f % 2 === 0) ? (
-            <mesh key={`ws-${f}`} position={[b.w / 2 + 0.07, -b.h / 2 + f * 4 + 2.5, 0]} rotation={[0, -Math.PI / 2, 0]}>
-              <planeGeometry args={[b.d * 0.76, 1.4]} />
-              <meshStandardMaterial
-                color={b.isGlass ? '#a8d8ff' : '#fbbf24'}
-                emissive={b.isGlass ? '#3b82f6' : '#d97706'}
-                emissiveIntensity={b.isGlass ? 1.3 : 2.0}
-                toneMapped={false} side={THREE.DoubleSide}
-              />
-            </mesh>
-          ) : null)}
-          {/* Rooftop AC unit */}
-          <Box args={[b.acW, 1.6, b.acD]} position={[b.w * 0.18, b.h / 2 + 0.8, b.d * 0.1]}>
-            <meshStandardMaterial color="#252b36" roughness={0.7} metalness={0.5} />
-          </Box>
-          <Box args={[b.acW * 0.6, 0.5, b.acD * 0.6]} position={[b.w * 0.18, b.h / 2 + 1.85, b.d * 0.1]}>
-            <meshStandardMaterial color="#1a1f28" roughness={0.6} metalness={0.6} />
-          </Box>
-          {/* Rooftop antenna */}
-          {b.rooftopSeed > 0.45 && (
-            <Cylinder args={[0.07, 0.07, 5.5]} position={[-b.w * 0.22, b.h / 2 + 2.75, b.d * 0.18]}>
-              <meshStandardMaterial color="#1a1d24" roughness={0.5} metalness={0.9} />
-            </Cylinder>
-          )}
-          {/* Rooftop water tank */}
-          {b.rooftopSeed > 0.7 && (
-            <Cylinder args={[1.1, 1.1, 2.2]} position={[b.w * 0.25, b.h / 2 + 1.1, -b.d * 0.2]}>
-              <meshStandardMaterial color="#1e2530" roughness={0.8} metalness={0.4} />
-            </Cylinder>
-          )}
-        </group>
-      ))}
+      {/* === BUILDINGS — stepped profiles, window columns, neon accents === */}
+      {buildings.map((b, i) => {
+        const winColor = b.isGlass ? '#b8d8ff' : '#fbbf24';
+        const winEmissive = b.isGlass ? '#3b82f6' : '#d97706';
+        const winIntensity = b.isGlass ? 1.5 : 2.2;
+        const cSpF = b.w / (b.numWinCols + 1);
+        const cSpS = b.d / (b.numWinCols + 1);
+        return (
+          <group key={i} position={[b.x, 0, b.z]}>
+            {/* LOWER SECTION */}
+            <Box args={[b.w, b.step1H, b.d]} position={[0, b.step1H / 2, 0]} castShadow receiveShadow material={b.mat} />
+
+            {/* STEPPED UPPER SECTION */}
+            {b.isTall && (
+              <Box args={[b.step2W, b.step2H, b.step2D]}
+                   position={[0, b.step1H + b.step2H / 2, 0]}
+                   castShadow receiveShadow material={b.mat} />
+            )}
+
+            {/* GROUND FLOOR PLINTH */}
+            <Box args={[b.w + 1.8, 3.2, b.d + 1.8]} position={[0, 1.6, 0]}>
+              <meshStandardMaterial color="#0f1218" roughness={0.92} metalness={0.22} />
+            </Box>
+
+            {/* WINDOW COLUMNS — front face, lower section */}
+            {b.windowsLit.map((lit, f) => (lit && f % 2 === 0) ? (
+              <React.Fragment key={`wff-${i}-${f}`}>
+                {Array.from({ length: b.numWinCols }, (_, col) => (
+                  <mesh key={`wf-${col}`} position={[(col + 1) * cSpF - b.w / 2, f * 4 + 2.8, b.d / 2 + 0.09]}>
+                    <planeGeometry args={[cSpF * 0.64, 1.4]} />
+                    <meshStandardMaterial color={winColor} emissive={winEmissive}
+                      emissiveIntensity={winIntensity} toneMapped={false} side={THREE.DoubleSide} />
+                  </mesh>
+                ))}
+              </React.Fragment>
+            ) : null)}
+
+            {/* WINDOW COLUMNS — side face, lower section */}
+            {b.windowsLit.map((lit, f) => (lit && f % 2 === 0) ? (
+              <React.Fragment key={`wsf-${i}-${f}`}>
+                {Array.from({ length: b.numWinCols }, (_, col) => (
+                  <mesh key={`ws-${col}`} position={[b.w / 2 + 0.09, f * 4 + 2.8, (col + 1) * cSpS - b.d / 2]} rotation={[0, -Math.PI / 2, 0]}>
+                    <planeGeometry args={[cSpS * 0.64, 1.4]} />
+                    <meshStandardMaterial color={winColor} emissive={winEmissive}
+                      emissiveIntensity={winIntensity} toneMapped={false} side={THREE.DoubleSide} />
+                  </mesh>
+                ))}
+              </React.Fragment>
+            ) : null)}
+
+            {/* WINDOW COLUMNS — upper stepped section */}
+            {b.isTall && b.windowsLit2.map((lit, f) => (lit && f % 2 === 0) ? (
+              <React.Fragment key={`wuf-${i}-${f}`}>
+                {Array.from({ length: Math.max(1, b.numWinCols - 1) }, (_, col) => {
+                  const nc = Math.max(1, b.numWinCols - 1);
+                  const sp = b.step2W / (nc + 1);
+                  return (
+                    <mesh key={`wu-${col}`} position={[(col + 1) * sp - b.step2W / 2, b.step1H + f * 4 + 2.8, b.step2D / 2 + 0.09]}>
+                      <planeGeometry args={[sp * 0.64, 1.4]} />
+                      <meshStandardMaterial color={winColor} emissive={winEmissive}
+                        emissiveIntensity={winIntensity} toneMapped={false} side={THREE.DoubleSide} />
+                    </mesh>
+                  );
+                })}
+              </React.Fragment>
+            ) : null)}
+
+            {/* NEON ACCENT STRIPS */}
+            {b.hasNeon && (
+              <>
+                <Box args={[0.22, b.step1H * 0.88, 0.22]} position={[-b.w / 2 - 0.08, b.step1H * 0.5, b.d / 2 + 0.08]}>
+                  <meshStandardMaterial color={b.neonColor} emissive={b.neonColor} emissiveIntensity={3.5} toneMapped={false} />
+                </Box>
+                <Box args={[0.22, b.step1H * 0.88, 0.22]} position={[b.w / 2 + 0.08, b.step1H * 0.5, b.d / 2 + 0.08]}>
+                  <meshStandardMaterial color={b.neonColor} emissive={b.neonColor} emissiveIntensity={3.5} toneMapped={false} />
+                </Box>
+                <Box args={[b.w + 0.5, 0.22, 0.22]} position={[0, b.step1H - 1.5, b.d / 2 + 0.08]}>
+                  <meshStandardMaterial color={b.neonColor} emissive={b.neonColor} emissiveIntensity={3.5} toneMapped={false} />
+                </Box>
+              </>
+            )}
+
+            {/* ROOFTOP — AC unit, stair shaft, antenna, water tank */}
+            <Box args={[b.acW, 1.8, b.acD]} position={[b.w * 0.15, b.step1H + 0.9, b.d * 0.1]}>
+              <meshStandardMaterial color="#1e2530" roughness={0.7} metalness={0.5} />
+            </Box>
+            <Box args={[2.8, 3.4, 2.8]} position={[-b.w * 0.2, b.step1H + 1.7, -b.d * 0.2]}>
+              <meshStandardMaterial color="#13161d" roughness={0.85} metalness={0.3} />
+            </Box>
+            {b.rooftopSeed > 0.45 && (
+              <Cylinder args={[0.07, 0.07, 6]} position={[b.w * 0.1, b.step1H + 3.9, b.d * 0.15]}>
+                <meshStandardMaterial color="#1a1d24" roughness={0.5} metalness={0.9} />
+              </Cylinder>
+            )}
+            {b.rooftopSeed > 0.7 && (
+              <Cylinder args={[1.2, 1.2, 2.4]} position={[b.w * 0.25, b.step1H + 1.2, -b.d * 0.22]}>
+                <meshStandardMaterial color="#1e2835" roughness={0.78} metalness={0.45} />
+              </Cylinder>
+            )}
+
+            {/* HELIPAD on very tall buildings */}
+            {b.isVeryTall && (
+              <>
+                <Cylinder args={[3.8, 3.8, 0.22, 32]} position={[0, b.h + 0.11, 0]}>
+                  <meshStandardMaterial color="#1a2030" roughness={0.8} metalness={0.35} />
+                </Cylinder>
+                <mesh position={[0, b.h + 0.24, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[2.9, 3.4, 32]} />
+                  <meshStandardMaterial color="#f59e0b" emissive="#d97706" emissiveIntensity={1.2} toneMapped={false} side={THREE.DoubleSide} />
+                </mesh>
+              </>
+            )}
+          </group>
+        );
+      })}
 
       {/* === TREES ALONG SIDEWALKS === */}
       {treePositions.map((pos, i) => (
