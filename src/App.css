@@ -47,12 +47,15 @@ body, html {
   -webkit-backdrop-filter: blur(25px);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 10px 0 40px rgba(0, 0, 0, 0.5);
-  padding: 35px 30px;
+  padding: 28px 22px;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   pointer-events: auto;
   z-index: 10;
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,242,254,0.2) transparent;
 }
 
 .sidebar:hover {
@@ -83,8 +86,7 @@ body, html {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  padding: 22px;
-  margin-bottom: 25px;
+  padding: 16px;
   position: relative;
   overflow: hidden;
 }
@@ -155,10 +157,19 @@ body, html {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), 0 0 15px rgba(16, 185, 129, 0.2);
 }
 
+.neon-yellow {
+  color: #fbbf24;
+  text-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+}
+
+.neon-red {
+  color: #f87171;
+  text-shadow: 0 0 15px rgba(248, 113, 113, 0.4);
+}
+
 .dashboard-stats {
   display: flex;
-  gap: 15px;
-  margin-bottom: 35px;
+  gap: 12px;
 }
 
 .stat-box {
@@ -261,6 +272,233 @@ body, html {
   content: ''; position: absolute; top:0; left:24px; width:2px; height:50px; background: rgba(0,242,254,0.3); 
 }
 .hud-reticle::after {
-  content: ''; position: absolute; left:0; top:24px; height:2px; width:50px; background: rgba(0,242,254,0.3); 
+  content: ''; position: absolute; left:0; top:24px; height:2px; width:50px; background: rgba(0,242,254,0.3);
 }
+
+/* ── STATS PANELS ── */
+.stats-panel {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,242,254,0.35), transparent);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.panel-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: rgba(0,242,254,0.55);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.panel-timer {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  background: rgba(255,255,255,0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ── SIGNAL MATRIX ── */
+.signal-matrix {
+  display: flex;
+  gap: 10px;
+}
+
+.signal-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.25);
+}
+
+.sig-axis {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: #64748b;
+  letter-spacing: 1px;
+}
+
+.sig-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+}
+
+.sig-state {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.signal-card.sig-green { border-color: rgba(0,255,170,0.25); }
+.signal-card.sig-green .sig-dot { background: #00ffaa; box-shadow: 0 0 8px #00ffaa; }
+.signal-card.sig-green .sig-state { color: #00ffaa; }
+
+.signal-card.sig-yellow { border-color: rgba(255,170,0,0.25); }
+.signal-card.sig-yellow .sig-dot { background: #ffaa00; box-shadow: 0 0 8px #ffaa00; }
+.signal-card.sig-yellow .sig-state { color: #ffaa00; }
+
+.signal-card.sig-red { border-color: rgba(255,0,60,0.25); }
+.signal-card.sig-red .sig-dot { background: #ff003c; box-shadow: 0 0 8px #ff003c; }
+.signal-card.sig-red .sig-state { color: #ff003c; }
+
+/* ── SESSION METRICS ── */
+.metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 4px 0;
+}
+
+.metric-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.metric-val {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.metric-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.58rem;
+  color: #64748b;
+  letter-spacing: 1.5px;
+}
+
+.metric-sep {
+  width: 1px;
+  height: 36px;
+  background: rgba(255,255,255,0.07);
+}
+
+/* ── FLEET BREAKDOWN ── */
+.fleet-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.fleet-row:last-child { margin-bottom: 0; }
+
+.fleet-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.62rem;
+  color: #64748b;
+  letter-spacing: 1px;
+  width: 52px;
+  flex-shrink: 0;
+}
+
+.fleet-bar-bg {
+  flex: 1;
+  height: 5px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.fleet-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.fleet-count {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: bold;
+  width: 20px;
+  text-align: right;
+}
+
+/* ── INCIDENT LOG ── */
+.violations-log {
+  max-height: 160px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248,113,113,0.2) transparent;
+}
+
+.no-violations {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: #334155;
+  text-align: center;
+  padding: 12px 0;
+  letter-spacing: 1px;
+}
+
+.violation-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+}
+
+.violation-row:last-child { border-bottom: none; }
+
+.v-time {
+  color: #475569;
+  flex-shrink: 0;
+  font-size: 0.6rem;
+}
+
+.v-type {
+  color: #f87171;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.v-desc {
+  color: #64748b;
+  letter-spacing: 0.5px;
+}
+
+.clear-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: #f87171;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.2s;
+}
+
+.clear-btn:hover { background: rgba(248,113,113,0.18); }
 

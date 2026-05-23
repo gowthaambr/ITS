@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Box, Plane, Cylinder, Html, Environment, SpotLight, Trail, Grid } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -491,16 +491,20 @@ const VehicleModel = React.forwardRef(({ type, color }, ref) => {
 });
 
 // --- PHYSICS CONTROLLER MESH ---
-function VehicleMesh({ id, type, direction, getLightState, removeMe }) {
+function VehicleMesh({ id, type, direction, getLightState, removeMe, reportViolation }) {
   const ref = useRef();
-  const innerRef = useRef(); // Ref for the spinning/animated part
+  const innerRef = useRef();
 
   const specs = useMemo(() => {
     if (type === 'Person') return { speed: 0.12, color: '#10b981', clearance: 2 };
     if (type === 'Bike') return { speed: 0.65, color: '#f59e0b', clearance: 6 };
-    if (type === 'Truck') return { speed: 0.28, color: '#e2e8f0', clearance: 15 }; // White/Silver Truck
+    if (type === 'Truck') return { speed: 0.28, color: '#e2e8f0', clearance: 15 };
     return { speed: 0.5, color: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][Math.floor(Math.random()*5)], clearance: 8 };
   }, [type]);
+
+  // 15% of non-pedestrian vehicles run red lights
+  const willRunRed = useMemo(() => type !== 'Person' && Math.random() < 0.15, [type]);
+  const crossedStopRef = useRef(false);
 
   const [currentSpeed, setCurrentSpeed] = useState(specs.speed);
 
@@ -542,9 +546,15 @@ function VehicleMesh({ id, type, direction, getLightState, removeMe }) {
     }
 
     let shouldMove = true;
-    
+
     if (facingLight === 'RED' && distanceToStop > 0 && distanceToStop < (specs.clearance + 15)) {
-      shouldMove = false;
+      if (!willRunRed) shouldMove = false;
+    }
+
+    // Detect red-light violation: vehicle crosses stop line during red
+    if (!crossedStopRef.current && distanceToStop < 1 && distanceToStop > -10 && facingLight === 'RED') {
+      crossedStopRef.current = true;
+      if (reportViolation) reportViolation(id, type, direction);
     }
 
     for (let currentId in vehicleTracker) {
@@ -607,12 +617,20 @@ function VehicleMesh({ id, type, direction, getLightState, removeMe }) {
 // --- REACT APP EXPORT ---
 export default function App() {
   const [lightPhase, setLightPhase] = useState(0);
+  const PHASE_DURATIONS = [7500, 3000, 7500, 3000];
+  const phaseStartRef = useRef(Date.now());
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const timings = [7500, 3000, 7500, 3000]; 
+    const t = setInterval(() => setTick(p => p + 1), 500);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    phaseStartRef.current = Date.now();
     const timer = setTimeout(() => {
       setLightPhase((p) => (p + 1) % 4);
-    }, timings[lightPhase]);
+    }, PHASE_DURATIONS[lightPhase]);
     return () => clearTimeout(timer);
   }, [lightPhase]);
 
@@ -630,10 +648,40 @@ export default function App() {
   };
 
   const [vehicles, setVehicles] = useState([]);
-  
+  const [totalSpawned, setTotalSpawned] = useState(0);
+  const [throughput, setThroughput] = useState(0);
+  const [violations, setViolations] = useState([]);
+
   const spawnVehicle = (type, direction) => {
     setVehicles(prev => [...prev, { id: generateId(), type, direction }]);
+    setTotalSpawned(p => p + 1);
   };
+
+  const reportViolation = useCallback((id, type, direction) => {
+    setViolations(prev => [
+      { id, type, direction, time: new Date().toLocaleTimeString('en-US', { hour12: false }) },
+      ...prev,
+    ].slice(0, 15));
+  }, []);
+
+  // Computed values
+  const elapsed = Date.now() - phaseStartRef.current;
+  const remaining = Math.max(0, Math.ceil((PHASE_DURATIONS[lightPhase] - elapsed) / 1000));
+  const nsLight = getLightState('NS');
+  const ewLight = getLightState('EW');
+  const fleetCounts = { Car: 0, Truck: 0, Bike: 0, Person: 0 };
+  vehicles.forEach(v => { fleetCounts[v.type] = (fleetCounts[v.type] || 0) + 1; });
+  const maxFleet = Math.max(...Object.values(fleetCounts), 1);
+  const trafficStatus = violations.length === 0 ? ['SECURE', 'neon-green'] : violations.length < 4 ? ['CAUTION', 'neon-yellow'] : ['ALERT', 'neon-red'];
+
+  const FLEET_META = [
+    { type: 'Car',    color: '#3b82f6', label: 'CARS'    },
+    { type: 'Truck',  color: '#94a3b8', label: 'TRUCKS'  },
+    { type: 'Bike',   color: '#f59e0b', label: 'BIKES'   },
+    { type: 'Person', color: '#10b981', label: 'PERSONS' },
+  ];
+
+  const DIR_LABEL = { N: 'N-BOUND', S: 'S-BOUND', E: 'E-BOUND', W: 'W-BOUND' };
 
   return (
     <div className="app-wrapper">
@@ -641,18 +689,72 @@ export default function App() {
         <div className="sidebar">
           <h1 className="cyber-title">A.I. MATRIX // LIVE</h1>
           <p className="cyber-subtitle">High-Fidelity Traffic Digital Twin</p>
-          
+
+          {/* ── TOP KPI ROW ── */}
           <div className="dashboard-stats">
             <div className="stat-box">
               <div className="stat-value neon-blue">{vehicles.length}</div>
-              <div className="stat-label">Active Entities</div>
+              <div className="stat-label">Active</div>
             </div>
             <div className="stat-box">
-              <div className="stat-value neon-green">SECURE</div>
-              <div className="stat-label">Traffic Status</div>
+              <div className={`stat-value ${trafficStatus[1]}`}>{trafficStatus[0]}</div>
+              <div className="stat-label">Status</div>
             </div>
           </div>
 
+          {/* ── SIGNAL MATRIX ── */}
+          <div className="stats-panel">
+            <div className="panel-header">
+              <span className="panel-label">SIGNAL MATRIX</span>
+              <span className="panel-timer">{remaining}s</span>
+            </div>
+            <div className="signal-matrix">
+              {[['N / S', nsLight], ['E / W', ewLight]].map(([axis, state]) => (
+                <div key={axis} className={`signal-card sig-${state.toLowerCase()}`}>
+                  <div className="sig-axis">{axis}</div>
+                  <div className="sig-dot" />
+                  <div className="sig-state">{state}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── SESSION METRICS ── */}
+          <div className="stats-panel">
+            <div className="panel-header"><span className="panel-label">SESSION METRICS</span></div>
+            <div className="metrics-row">
+              <div className="metric-block">
+                <div className="metric-val neon-blue">{totalSpawned}</div>
+                <div className="metric-label">DEPLOYED</div>
+              </div>
+              <div className="metric-sep" />
+              <div className="metric-block">
+                <div className="metric-val neon-green">{throughput}</div>
+                <div className="metric-label">CLEARED</div>
+              </div>
+              <div className="metric-sep" />
+              <div className="metric-block">
+                <div className="metric-val neon-red">{violations.length}</div>
+                <div className="metric-label">VIOLATIONS</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── FLEET STATUS ── */}
+          <div className="stats-panel">
+            <div className="panel-header"><span className="panel-label">FLEET BREAKDOWN</span></div>
+            {FLEET_META.map(({ type, color, label }) => (
+              <div key={type} className="fleet-row">
+                <span className="fleet-label">{label}</span>
+                <div className="fleet-bar-bg">
+                  <div className="fleet-bar-fill" style={{ width: `${(fleetCounts[type] / maxFleet) * 100}%`, background: color }} />
+                </div>
+                <span className="fleet-count" style={{ color }}>{fleetCounts[type]}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ── SPAWN PANEL ── */}
           <div className="hud-panel">
             <h3 className="hud-title">Deploy Target Nodes</h3>
             <div className="spawn-grid">
@@ -664,6 +766,28 @@ export default function App() {
               <button className="spawn-btn person-btn" onClick={() => spawnVehicle('Person', 'E')}>Person [East ⬅️]</button>
             </div>
           </div>
+
+          {/* ── INCIDENT LOG ── */}
+          <div className="stats-panel">
+            <div className="panel-header">
+              <span className="panel-label">INCIDENT LOG</span>
+              {violations.length > 0 && (
+                <button className="clear-btn" onClick={() => setViolations([])}>CLEAR</button>
+              )}
+            </div>
+            <div className="violations-log">
+              {violations.length === 0 ? (
+                <div className="no-violations">No incidents recorded</div>
+              ) : violations.map((v, i) => (
+                <div key={i} className="violation-row">
+                  <span className="v-time">{v.time}</span>
+                  <span className="v-type">{v.type.toUpperCase()}</span>
+                  <span className="v-desc">RAN RED · {DIR_LABEL[v.direction]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
         
         <div className="canvas-container">
@@ -708,13 +832,17 @@ export default function App() {
         <TrafficLight position={[20, 0, -20]} rotation={[0, -Math.PI/2, 0]} state={getLightState('NS')} />
 
         {vehicles.map(v => (
-          <VehicleMesh 
-            key={v.id} 
-            id={v.id} 
-            type={v.type} 
-            direction={v.direction} 
+          <VehicleMesh
+            key={v.id}
+            id={v.id}
+            type={v.type}
+            direction={v.direction}
             getLightState={getLightState}
-            removeMe={(id) => setVehicles(prev => prev.filter(v => v.id !== id))}
+            reportViolation={reportViolation}
+            removeMe={(id) => {
+              setVehicles(prev => prev.filter(v => v.id !== id));
+              setThroughput(p => p + 1);
+            }}
           />
         ))}
 
