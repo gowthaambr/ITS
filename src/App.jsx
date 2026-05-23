@@ -669,16 +669,15 @@ export default function App() {
   const remaining = Math.max(0, Math.ceil((PHASE_DURATIONS[lightPhase] - elapsed) / 1000));
   const nsLight = getLightState('NS');
   const ewLight = getLightState('EW');
-  const fleetCounts = { Car: 0, Truck: 0, Bike: 0, Person: 0 };
-  vehicles.forEach(v => { fleetCounts[v.type] = (fleetCounts[v.type] || 0) + 1; });
+  const fleetCounts = { Car: 0, Truck: 0, Bike: 0 };
+  vehicles.forEach(v => { if (v.type !== 'Person') fleetCounts[v.type] = (fleetCounts[v.type] || 0) + 1; });
   const maxFleet = Math.max(...Object.values(fleetCounts), 1);
   const trafficStatus = violations.length === 0 ? ['SECURE', 'neon-green'] : violations.length < 4 ? ['CAUTION', 'neon-yellow'] : ['ALERT', 'neon-red'];
 
   const FLEET_META = [
-    { type: 'Car',    color: '#3b82f6', label: 'CARS'    },
-    { type: 'Truck',  color: '#94a3b8', label: 'TRUCKS'  },
-    { type: 'Bike',   color: '#f59e0b', label: 'BIKES'   },
-    { type: 'Person', color: '#10b981', label: 'PERSONS' },
+    { type: 'Car',   color: '#3b82f6', label: 'CARS'   },
+    { type: 'Truck', color: '#94a3b8', label: 'TRUCKS' },
+    { type: 'Bike',  color: '#f59e0b', label: 'BIKES'  },
   ];
 
   const DIR_LABEL = { N: 'N-BOUND', S: 'S-BOUND', E: 'E-BOUND', W: 'W-BOUND' };
@@ -762,8 +761,8 @@ export default function App() {
               <button className="spawn-btn" onClick={() => spawnVehicle('Bike', 'S')}>Bike [South ⬆️]</button>
               <button className="spawn-btn" onClick={() => spawnVehicle('Truck', 'E')}>Truck [East ⬅️]</button>
               <button className="spawn-btn" onClick={() => spawnVehicle('Car', 'W')}>Car [West ➡️]</button>
-              <button className="spawn-btn person-btn" onClick={() => spawnVehicle('Person', 'N')}>Person [North ⬇️]</button>
-              <button className="spawn-btn person-btn" onClick={() => spawnVehicle('Person', 'E')}>Person [East ⬅️]</button>
+              <button className="spawn-btn" onClick={() => spawnVehicle('Truck', 'N')}>Truck [North ⬇️]</button>
+              <button className="spawn-btn" onClick={() => spawnVehicle('Bike', 'W')}>Bike [West ➡️]</button>
             </div>
           </div>
 
