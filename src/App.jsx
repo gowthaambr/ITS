@@ -49,14 +49,14 @@ function Tree({ position }) {
   }), []);
   return (
     <group position={position}>
-      <Cylinder args={[0.2, 0.3, height]} position={[0, height / 2, 0]} castShadow>
+      <Cylinder args={[0.2, 0.3, height]} position={[0, height / 2, 0]}>
         <meshStandardMaterial color="#231a0e" roughness={0.95} />
       </Cylinder>
-      <mesh position={[0, height * 0.78, 0]} castShadow>
+      <mesh position={[0, height * 0.78, 0]}>
         <dodecahedronGeometry args={[leafSize * 1.15, 1]} />
         <meshStandardMaterial color="#0c1c0d" roughness={0.88} />
       </mesh>
-      <mesh position={[0, height * 1.12, 0]} castShadow>
+      <mesh position={[0, height * 1.12, 0]}>
         <dodecahedronGeometry args={[leafSize * 0.7, 1]} />
         <meshStandardMaterial color="#112214" roughness={0.82} />
       </mesh>
@@ -82,9 +82,8 @@ function LampPost({ position, rotation }) {
       </Box>
       <mesh position={[-4.4, 8.82, 0]}>
         <planeGeometry args={[1.65, 0.22]} />
-        <meshStandardMaterial color="#ffe8a8" emissive="#ffcc44" emissiveIntensity={5.0} toneMapped={false} />
+        <meshStandardMaterial color="#ffe8a8" emissive="#ffcc44" emissiveIntensity={5.0} toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
-      <pointLight position={[-4.4, 8.2, 0]} color="#ffcc44" intensity={22} distance={30} decay={2} />
     </group>
   );
 }
@@ -120,13 +119,13 @@ function EnvironmentScene() {
     });
 
     const trees = [];
-    for (let z = -130; z <= 130; z += 16) {
+    for (let z = -130; z <= 130; z += 30) {
       if (Math.abs(z) > 22) {
         trees.push([22, 0, z]);
         trees.push([-22, 0, z]);
       }
     }
-    for (let x = -130; x <= 130; x += 16) {
+    for (let x = -130; x <= 130; x += 30) {
       if (Math.abs(x) > 22) {
         trees.push([x, 0, 22]);
         trees.push([x, 0, -22]);
@@ -245,27 +244,27 @@ function EnvironmentScene() {
           <Box args={[b.w + 1.2, 3.2, b.d + 1.2]} position={[0, -b.h / 2 + 1.6, 0]}>
             <meshStandardMaterial color="#16191f" roughness={0.9} metalness={0.15} />
           </Box>
-          {/* Window strips — front face */}
-          {b.windowsLit.map((lit, f) => lit ? (
+          {/* Window strips — front face (every other lit floor) */}
+          {b.windowsLit.map((lit, f) => (lit && f % 2 === 0) ? (
             <mesh key={`wf-${f}`} position={[0, -b.h / 2 + f * 4 + 2.5, b.d / 2 + 0.07]}>
               <planeGeometry args={[b.w * 0.76, 1.4]} />
               <meshStandardMaterial
                 color={b.isGlass ? '#a8d8ff' : '#fbbf24'}
                 emissive={b.isGlass ? '#3b82f6' : '#d97706'}
                 emissiveIntensity={b.isGlass ? 1.3 : 2.0}
-                toneMapped={false} transparent opacity={0.88}
+                toneMapped={false} side={THREE.DoubleSide}
               />
             </mesh>
           ) : null)}
-          {/* Window strips — side face */}
-          {b.windowsLit.map((lit, f) => lit ? (
+          {/* Window strips — side face (every other lit floor) */}
+          {b.windowsLit.map((lit, f) => (lit && f % 2 === 0) ? (
             <mesh key={`ws-${f}`} position={[b.w / 2 + 0.07, -b.h / 2 + f * 4 + 2.5, 0]} rotation={[0, -Math.PI / 2, 0]}>
               <planeGeometry args={[b.d * 0.76, 1.4]} />
               <meshStandardMaterial
                 color={b.isGlass ? '#a8d8ff' : '#fbbf24'}
                 emissive={b.isGlass ? '#3b82f6' : '#d97706'}
                 emissiveIntensity={b.isGlass ? 1.3 : 2.0}
-                toneMapped={false} transparent opacity={0.88}
+                toneMapped={false} side={THREE.DoubleSide}
               />
             </mesh>
           ) : null)}
@@ -506,18 +505,19 @@ function VehicleMesh({ id, type, direction, getLightState, removeMe }) {
   const [currentSpeed, setCurrentSpeed] = useState(specs.speed);
 
   useEffect(() => {
-    const startDist = 500; 
+    if (!ref.current) return;
+    const startDist = 500;
     const laneOffset = type === 'Person' ? (LANE_WIDTH + 3) : (LANE_WIDTH / 2);
-    
-    if (direction === 'N') { 
+
+    if (direction === 'N') {
       ref.current.position.set(laneOffset, 0, startDist);
-    } else if (direction === 'S') { 
+    } else if (direction === 'S') {
       ref.current.position.set(-laneOffset, 0, -startDist);
       ref.current.rotation.y = Math.PI;
-    } else if (direction === 'E') { 
+    } else if (direction === 'E') {
       ref.current.position.set(-startDist, 0, laneOffset);
       ref.current.rotation.y = -Math.PI / 2;
-    } else if (direction === 'W') { 
+    } else if (direction === 'W') {
       ref.current.position.set(startDist, 0, -laneOffset);
       ref.current.rotation.y = Math.PI / 2;
     }
@@ -679,25 +679,20 @@ export default function App() {
         
         {/* High-quality Post Processing Pipeline */}
         <EffectComposer disableNormalPass>
-          <Bloom luminanceThreshold={1.0} mipmapBlur intensity={1.5} />
+          <Bloom luminanceThreshold={1.0} mipmapBlur intensity={0.8} />
         </EffectComposer>
 
         <Environment preset="night" />
 
-        <ambientLight intensity={0.2} />
-        <hemisphereLight skyColor="#8fb8ff" groundColor="#10121a" intensity={0.35} />
-        <pointLight position={[25, 20, 25]} intensity={1.4} distance={200} color="#d9f3ff" />
-        <ambientLight intensity={0.28} />
-        <hemisphereLight skyColor="#98c8ff" groundColor="#0c1320" intensity={0.25} />
-        <pointLight position={[0, 35, 0]} color="#b4d6ff" intensity={1.1} distance={180} />
-        <pointLight position={[30, 20, -30]} color="#ffd6a6" intensity={0.7} distance={120} />
-        {/* Moonlight */}
-        <directionalLight 
-           position={[100, 200, 50]} 
-           intensity={0.4} 
+        <ambientLight intensity={0.45} />
+        <hemisphereLight skyColor="#8fb8ff" groundColor="#0c1320" intensity={0.4} />
+        <pointLight position={[0, 35, 0]} color="#b4d6ff" intensity={1.2} distance={200} />
+        <directionalLight
+           position={[100, 200, 50]}
+           intensity={0.4}
            color="#c4d7ee"
-           castShadow 
-           shadow-mapSize={[4096, 4096]} 
+           castShadow
+           shadow-mapSize={[1024, 1024]}
            shadow-camera-left={-200}
            shadow-camera-right={200}
            shadow-camera-top={200}
